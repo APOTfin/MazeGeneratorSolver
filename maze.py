@@ -2,7 +2,7 @@ import random
 import pygame as pg
 
 size = 100
-res = 800
+res = 400
 tilesize = res / size
 halftile = tilesize / 2
 size += 1
@@ -46,9 +46,7 @@ class Path:
         for i, option in enumerate(possible):
             if option == max(possible):
                 best.append(i)
-        direction = best[0]
-        if len(best) > 1:
-            direction = random.choice(best)
+        direction = random.choice(best)
         self.x += -(direction == 0) + (direction == 1)
         self.y += -(direction == 2) + (direction == 3)
         poles[self.x + 1][self.y + 1] = 0
@@ -74,39 +72,39 @@ class Path:
                 blocked = 0
                 if x == 0:
                     blocked += 1
-                elif done[x - 1][y] == 2:
-                    blocked += 1
-                elif done[x - 1][y] == 1 and poles[x * 2][y * 2 + 1] == 1:
+                elif done[x - 1][y] + poles[x * 2][y * 2 + 1] >= 2:
                     blocked += 1
                 if x == size - 2:
                     blocked += 1
-                elif done[x + 1][y] == 2:
-                    blocked += 1
-                elif done[x + 1][y] == 1 and poles[x * 2 + 2][y * 2 + 1] == 1:
+                elif done[x + 1][y] + poles[x * 2 + 2][y * 2 + 1] >= 2:
                     blocked += 1
                 if y == 0:
                     blocked += 1
-                elif done[x][y - 1] == 2:
-                    blocked += 1
-                elif done[x][y - 1] == 1 and poles[x * 2 + 1][y * 2] == 1:
+                elif done[x][y - 1] + poles[x * 2 + 1][y * 2] >= 2:
                     blocked += 1
                 if y == size - 2:
                     blocked += 1
-                elif done[x][y + 1] == 2:
-                    blocked += 1
-                elif done[x][y + 1] == 1 and poles[x * 2 + 1][y * 2 + 2] == 1:
+                elif done[x][y + 1] + poles[x * 2 + 1][y * 2 + 2] >= 2:
                     blocked += 1
                 if blocked >= 3:
                     done[x][y] = 2
+
+def magnifier(pos):
+    if size > res / 10:
+        x, y = pos
+        zoomed = pg.Surface((8 * tilesize, 8 * tilesize))
+        zoomed.blit(window, (-x + 4 * tilesize, -y + 4 * tilesize))
+        zoomed = pg.transform.scale(zoomed, (int(res / 4), int(res / 4)))
+        window.blit(zoomed, (x - int(res / 8), y - int(res / 8)))
 
 def createMaze():
     # Creates a random new maze and draws it to the screen.
     path = Path()
     ready = False
     while not ready:
-        if len(pg.event.get()) != 0:
+        if pg.event.get() != []:
             pg.quit()
-            exit()
+            break
         ready = path.update()
         left = int(path.x / 2) - (path.x != 0)
         right = int(path.x / 2) + (path.x != size * 2 - 4)
@@ -127,21 +125,16 @@ def createMaze():
                 window.fill((255, 255, 255), ((x - 0.5) * halftile, (y - 0.5) * halftile, halftile, halftile))
     pg.display.update()
 
-def solve():
+def solve(startpoint, endpoint):
     # Solves the maze by filling in all dead ends, leaving only the correct route.
     solved = poles.copy()
     unsolved = []
+    ends = []
     for x in range(1, size * 2 - 1):
         for y in range(1, size * 2 - 1):
-            if solved[x][y] == 0 and (x, y) != (1, 1) and (x, y) != (size * 2 - 3, size * 2 - 3):
+            if solved[x][y] == 0:
                 unsolved.append((x, y))
-    while True:
-        if len(pg.event.get()) != 0:
-            pg.quit()
-            exit()
-        finished = True
-        removed = []
-        for tile in unsolved:
+    for tile in unsolved:
             x, y = tile[0], tile[1]
             blocked = 0
             blocked += solved[x - 1][y]
@@ -149,26 +142,83 @@ def solve():
             blocked += solved[x][y - 1]
             blocked += solved[x][y + 1]
             if blocked >= 3:
-                removed.append(tile)
+                ends.append((x, y))
+    while True:
+        newends = []
+        for tile in ends:
+            if pg.event.get() != []:
+                pg.quit()
+                break
+            if tile not in [startpoint, endpoint]:
+                x, y = tile[0], tile[1]
                 solved[x][y] = 1
-                updaterects.append(window.fill((50, 50, 50), ((x - 0.5) * halftile, (y - 0.5) * halftile, halftile, halftile)))
-                finished = False
-        pg.display.update(updaterects)
-        updaterects.clear()
-        for tile in removed:
-            unsolved.remove(tile)
-        removed.clear()
-        if finished:
+                neighbors = [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
+                for tile in neighbors:
+                    if solved[tile[0]][tile[1]] == 0:
+                        x, y = tile[0], tile[1]
+                        blocked = 0
+                        blocked += solved[x - 1][y]
+                        blocked += solved[x + 1][y]
+                        blocked += solved[x][y - 1]
+                        blocked += solved[x][y + 1]
+                        if blocked >= 3:
+                            if tile not in newends:
+                                newends.append(tile)
+        ends = newends.copy()
+        if ends == []:
+            for x in range(1, size * 2 - 1):
+                for y in range(1, size * 2 - 1):
+                    if solved[x][y] == 0:
+                        updaterects.append(window.fill((255, 0, 0), (x * halftile - halftile / 2, y * halftile - halftile / 2, halftile, halftile)))
+            pg.display.update(updaterects)
             break
 
 if __name__ == "__main__":
     pg.init()
     pg.event.set_blocked(None)
     pg.event.set_allowed(pg.QUIT)
-    window = pg.display.set_mode(((int((size - 1) * tilesize)), int(((size - 1) * tilesize))))
+    window = pg.display.set_mode((res, res))
     createMaze()
-    solve()
-    while True:
-        if len(pg.event.get()) != 0:
-            pg.quit()
-            exit()
+    bg = pg.Surface((res, res))
+    bg.blit(window, (0, 0))
+    pg.event.set_allowed((pg.MOUSEBUTTONDOWN, pg.MOUSEMOTION))
+    point1, point2 = None, None
+    while point2 == None:
+        mousepos = (int(pg.mouse.get_pos()[0] / halftile + 0.5), int(pg.mouse.get_pos()[1] / halftile + 0.5))
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                pg.quit()
+                break
+            elif event.type == pg.MOUSEBUTTONDOWN:
+                if poles[mousepos[0]][mousepos[1]] == 0:
+                    if point1 == None:
+                        point1 = mousepos
+                    else:
+                        point2 = mousepos
+            elif event.type == pg.MOUSEMOTION:
+                window.blit(bg, (0, 0))
+                if poles[mousepos[0]][mousepos[1]] == 0:
+                    window.fill((255, 0, 0), ((mousepos[0] - 0.5) * halftile, (mousepos[1] - 0.5) * halftile, halftile, halftile))
+                if point1 != None:
+                    window.fill((255, 0, 0), ((point1[0] - 0.5) * halftile, (point1[1] - 0.5) * halftile, halftile, halftile))
+                if point2 != None:
+                    window.fill((255, 0, 0), ((point2[0] - 0.5) * halftile, (point2[1] - 0.5) * halftile, halftile, halftile))
+                magnifier(pg.mouse.get_pos())
+                pg.display.update()
+    window.blit(bg, (0, 0))
+    window.fill((255, 0, 0), ((point1[0] - 0.5) * halftile, (point1[1] - 0.5) * halftile, halftile, halftile))
+    window.fill((255, 0, 0), ((point2[0] - 0.5) * halftile, (point2[1] - 0.5) * halftile, halftile, halftile))
+    pg.event.set_blocked((pg.MOUSEBUTTONDOWN, pg.MOUSEMOTION))
+    solve(point1, point2)
+    bg.blit(window, (0,0))
+    pg.event.set_allowed(pg.MOUSEMOTION)
+    running = True
+    while running:
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                pg.quit()
+                running = False
+            elif event.type == pg.MOUSEMOTION:
+                window.blit(bg, (0, 0))
+                magnifier(pg.mouse.get_pos())
+                pg.display.update()

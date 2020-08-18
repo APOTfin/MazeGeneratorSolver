@@ -115,14 +115,16 @@ def createMaze():
                 state = done[x][y]
                 if state != 0:
                     color = (125 * state, 125 * state, 125 * state)
-                    updaterects.append(window.fill(color, (x * tilesize, y * tilesize, tilesize, tilesize)))
+                    rect = window.fill(color, (x * tilesize, y * tilesize, tilesize, tilesize))
+                    updaterects.append(rect)
         pg.display.update(updaterects)
         updaterects.clear()
     window.fill((0, 0, 0))
     for x in range(1, size * 2 - 1):
         for y in range(1, size * 2 - 1):
             if poles[x][y] == 0:
-                window.fill((255, 255, 255), ((x - 0.5) * halftile, (y - 0.5) * halftile, halftile, halftile))
+                rect = ((x - 0.5) * halftile, (y - 0.5) * halftile, halftile, halftile)
+                window.fill((255, 255, 255), rect)
     pg.display.update()
 
 def solve(startpoint, endpoint):
@@ -135,14 +137,14 @@ def solve(startpoint, endpoint):
             if solved[x][y] == 0:
                 unsolved.append((x, y))
     for tile in unsolved:
-            x, y = tile[0], tile[1]
-            blocked = 0
-            blocked += solved[x - 1][y]
-            blocked += solved[x + 1][y]
-            blocked += solved[x][y - 1]
-            blocked += solved[x][y + 1]
-            if blocked >= 3:
-                ends.append((x, y))
+        x, y = tile[0], tile[1]
+        blocked = 0
+        blocked += solved[x - 1][y]
+        blocked += solved[x + 1][y]
+        blocked += solved[x][y - 1]
+        blocked += solved[x][y + 1]
+        if blocked >= 3:
+            ends.append((x, y))
     while True:
         newends = []
         for tile in ends:
@@ -153,17 +155,17 @@ def solve(startpoint, endpoint):
                 x, y = tile[0], tile[1]
                 solved[x][y] = 1
                 neighbors = [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
-                for tile in neighbors:
-                    if solved[tile[0]][tile[1]] == 0:
-                        x, y = tile[0], tile[1]
+                for other in neighbors:
+                    if solved[other[0]][other[1]] == 0:
+                        x, y = other[0], other[1]
                         blocked = 0
                         blocked += solved[x - 1][y]
                         blocked += solved[x + 1][y]
                         blocked += solved[x][y - 1]
                         blocked += solved[x][y + 1]
                         if blocked >= 3:
-                            if tile not in newends:
-                                newends.append(tile)
+                            if other not in newends:
+                                newends.append(other)
         ends = newends.copy()
         if ends == []:
             for x in range(1, size * 2 - 1):
@@ -184,7 +186,7 @@ if __name__ == "__main__":
     pg.event.set_allowed((pg.MOUSEBUTTONDOWN, pg.MOUSEMOTION))
     point1, point2 = None, None
     while point2 == None:
-        mousepos = (int(pg.mouse.get_pos()[0] / halftile + 0.5), int(pg.mouse.get_pos()[1] / halftile + 0.5))
+        mousepos = int(pg.mouse.get_pos()[0] / halftile + 0.5), int(pg.mouse.get_pos()[1] / halftile + 0.5)
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
